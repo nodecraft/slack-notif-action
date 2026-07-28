@@ -12,7 +12,8 @@ inputs:
     required: false
     default: ''
   needs:
-    description: The calling job's `needs` context as JSON, i.e. `${{ toJSON(needs) }}`. Drives the per-job breakdown and the overall status.
+    # keep this description expression-free; the runner evaluates manifest descriptions and `needs` isn't a valid context there
+    description: The calling job's `needs` context as JSON, i.e. toJSON(needs). Drives the per-job breakdown and the overall status.
     required: false
     default: ''
   status:
