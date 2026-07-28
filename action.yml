@@ -1,0 +1,58 @@
+name: Slack CI notification
+description: Post a Block Kit summary of a workflow run to a Slack incoming webhook.
+author: Nodecraft
+
+branding:
+  icon: bell
+  color: green
+
+inputs:
+  webhook:
+    description: Slack incoming webhook URL. When empty the notification is skipped so forked PRs without secrets don't fail the run.
+    required: false
+    default: ''
+  needs:
+    description: The calling job's `needs` context as JSON, i.e. `${{ toJSON(needs) }}`. Drives the per-job breakdown and the overall status.
+    required: false
+    default: ''
+  status:
+    description: Overall status override (`success`, `failure` or `cancelled`). Defaults to a value derived from `needs`.
+    required: false
+    default: ''
+  fail-on-skipped:
+    description: Treat skipped jobs as a failure.
+    required: false
+    default: 'true'
+  name:
+    description: Display name in the message header. Defaults to the repository name.
+    required: false
+    default: ''
+  dry-run:
+    description: Build and print the payload without posting it.
+    required: false
+    default: 'false'
+
+outputs:
+  status:
+    description: Overall status used in the message (`success`, `failure`, `cancelled`, or `skipped` when no webhook was provided).
+    value: ${{ steps.notify.outputs.status }}
+
+runs:
+  using: composite
+  steps:
+    - name: Slack notification
+      id: notify
+      shell: bash
+      env:
+        SLACK_WEBHOOK: ${{ inputs.webhook }}
+        JOB_RESULTS: ${{ inputs.needs }}
+        STATUS_OVERRIDE: ${{ inputs.status }}
+        FAIL_ON_SKIPPED: ${{ inputs.fail-on-skipped }}
+        DISPLAY_NAME: ${{ inputs.name }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        PR_TITLE: ${{ github.event.pull_request.title }}
+        PR_URL: ${{ github.event.pull_request.html_url }}
+        COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+      run: bash "${GITHUB_ACTION_PATH}/scripts/notify.sh"

@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Shellcheck
+        run: shellcheck scripts/*.sh
+
+      - name: Actionlint
+        uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
+
+  self-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        include:
+          - name: all-passed
+            needs: '{"a":{"result":"success"},"b":{"result":"success"}}'
+            expected: success
+          - name: one-failed
+            needs: '{"a":{"result":"success"},"b":{"result":"failure"}}'
+            expected: failure
+          - name: cancelled
+            needs: '{"a":{"result":"success"},"b":{"result":"cancelled"}}'
+            expected: cancelled
+          - name: skipped-strict
+            needs: '{"a":{"result":"success"},"b":{"result":"skipped"}}'
+            expected: failure
+          - name: no-needs
+            needs: ''
+            expected: success
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build payload
+        id: notify
+        uses: ./
+        with:
+          webhook: https://example.invalid/dry-run
+          needs: ${{ matrix.needs }}
+          dry-run: true
+
+      - name: Assert status
+        env:
+          ACTUAL: ${{ steps.notify.outputs.status }}
+          EXPECTED: ${{ matrix.expected }}
+        run: |
+          set -euo pipefail
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::expected '$EXPECTED', got '$ACTUAL'"
+            exit 1
+          fi
+
+  skip-without-webhook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build payload
+        id: notify
+        uses: ./
+        with:
+          needs: '{"a":{"result":"success"}}'
+
+      - name: Assert skipped
+        env:
+          ACTUAL: ${{ steps.notify.outputs.status }}
+        run: |
+          set -euo pipefail
+          [ "$ACTUAL" = 'skipped' ] || { echo "::error::expected 'skipped', got '$ACTUAL'"; exit 1; }
+
+  notify:
+    needs: [lint, self-test, skip-without-webhook]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Slack notification
+        uses: ./
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK }}
+          needs: ${{ toJSON(needs) }}
