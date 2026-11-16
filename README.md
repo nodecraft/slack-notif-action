@@ -26,7 +26,13 @@ jobs:
           needs: ${{ toJSON(needs) }}
 ```
 
-No `if:` guard on the webhook is needed — when `webhook` is empty (forked PRs don't get secrets) the action logs a notice and exits successfully.
+No `if:` guard on the webhook is needed. When `webhook` is empty (forked PRs don't get secrets) the action logs a notice and exits successfully.
+
+The job receives your webhook secret, so for supply chain safety consider pinning to a full commit SHA instead of `@v1`:
+
+```yaml
+      - uses: nodecraft/slack-notif-action@<commit-sha> # v1.x.y
+```
 
 ## Inputs
 

@@ -8,6 +8,8 @@ on:
 permissions:
   contents: read
 
+# local actions stay on `./` until actionlint understands `$/` (rhysd/actionlint#711)
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -15,6 +17,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Shellcheck
         run: shellcheck scripts/*.sh
@@ -22,7 +26,16 @@ jobs:
       - name: Actionlint
         uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
 
+      - name: Zizmor
+        uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0
+        with:
+          # fail the job on findings instead of uploading SARIF, which would need security-events: write
+          advanced-security: false
+          version: 1.31.1
+
   self-test:
+    # stable check names so they can be required in the main ruleset
+    name: self-test (${{ matrix.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 5
     strategy:
@@ -46,10 +59,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Build payload
         id: notify
-        uses: ./
+        uses: ./ # zizmor: ignore[self-repository]
         with:
           webhook: https://example.invalid/dry-run
           needs: ${{ matrix.needs }}
@@ -72,10 +87,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Build payload
         id: notify
-        uses: ./
+        uses: ./ # zizmor: ignore[self-repository]
         with:
           needs: '{"a":{"result":"success"}}'
 
@@ -94,9 +111,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Slack notification
-        uses: ./
+        uses: ./ # zizmor: ignore[self-repository]
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK }}
           needs: ${{ toJSON(needs) }}
