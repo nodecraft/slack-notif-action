@@ -75,6 +75,8 @@ jq -n \
   --argjson results "$results" \
   '
   def esc: gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;");
+  # git allows these in ref names, and unencoded they would break out of the <url|text> link
+  def urlesc: gsub("&"; "%26") | gsub("<"; "%3C") | gsub(">"; "%3E") | gsub("\\|"; "%7C");
   def icon: if . == "success" then "✅" elif . == "cancelled" then "🚫" elif . == "skipped" then "⏭️" else "❌" end;
   ($results | to_entries) as $jobs
   | {
@@ -88,7 +90,7 @@ jq -n \
         {
           type: "section",
           fields: [
-            { type: "mrkdwn", text: "*\($source_label)*\n<\($source_url)|\($source_text | esc)>" },
+            { type: "mrkdwn", text: "*\($source_label)*\n<\($source_url | urlesc)|\($source_text | esc)>" },
             { type: "mrkdwn", text: ("*Commit*\n<\($commit_url)|\($sha)>" + (if $subject == "" then "" else " \($subject | esc)" end)) },
             { type: "mrkdwn", text: "*Author*\n<\($actor_url)|\($actor | esc)>" },
             (if ($jobs | length) == 0 then empty else
