@@ -32,6 +32,8 @@ jobs:
           version: 1.31.1
 
   self-test:
+    # stable check names so they can be required in the main ruleset
+    name: self-test (${{ matrix.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 5
     strategy:
@@ -60,7 +62,7 @@ jobs:
 
       - name: Build payload
         id: notify
-        uses: ./
+        uses: $/
         with:
           webhook: https://example.invalid/dry-run
           needs: ${{ matrix.needs }}
@@ -88,7 +90,7 @@ jobs:
 
       - name: Build payload
         id: notify
-        uses: ./
+        uses: $/
         with:
           needs: '{"a":{"result":"success"}}'
 
@@ -111,7 +113,7 @@ jobs:
           persist-credentials: false
 
       - name: Slack notification
-        uses: ./
+        uses: $/
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK }}
           needs: ${{ toJSON(needs) }}
